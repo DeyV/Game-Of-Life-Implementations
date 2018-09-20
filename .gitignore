@@ -9,6 +9,7 @@ kotlin/META-INF
 nim/nimcache
 nim/play
 python/__pycache__
+rust/target/
 scala/*.class
 swift/play
 typescript/*.js
