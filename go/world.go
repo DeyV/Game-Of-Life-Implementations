@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"math/rand"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -13,8 +12,8 @@ var LocationOccupied = fmt.Errorf("LocationOccupied")
 
 // PHP doesn't have a concept of nested classes (or even classes)
 var cachedDirections = [8][2]int{
-	{-1, 1}, {0, 1}, {1, 1}, // above
-	{-1, 0}, {1, 0}, // sides
+	{-1, 1}, {0, 1}, {1, 1},    // above
+	{-1, 0}, {1, 0},            // sides
 	{-1, -1}, {0, -1}, {1, -1}, // below
 }
 
@@ -37,12 +36,12 @@ type World struct {
 	width, height int
 	tick          int
 
-	cells map[string]*Cell
+	cells [World_Width + 1][World_Height + 1]*Cell
 }
 
 // Like constructor
 func newWorld(width, height int) *World {
-	w := &World{width: width, height: height, cells: make(map[string]*Cell, width*height)}
+	w := &World{width: width, height: height, cells: [World_Width + 1][World_Height + 1]*Cell{}}
 
 	w.populate_cells()
 	w.prepopulate_neighbours()
@@ -50,25 +49,31 @@ func newWorld(width, height int) *World {
 }
 
 func (w *World) _tick() {
+	var cell *Cell
 	// First determine the action for all cells
-	for _, cell := range w.cells {
-		alive_neighbours := w.alive_neighbours_around(cell)
+	for y := 0; y <= w.height; y++ {
+		for x := 0; x <= w.width; x++ {
+			cell = w.cells[x][y]
+			alive_neighbours := w.alive_neighbours_around(cell)
 
-		if !cell.alive && alive_neighbours == 3 {
-			cell.next_state = 1
-		} else if alive_neighbours < 2 || alive_neighbours > 3 {
-			cell.next_state = 0
+			if !cell.alive && alive_neighbours == 3 {
+				cell.next_state = 1
+			} else if alive_neighbours < 2 || alive_neighbours > 3 {
+				cell.next_state = 0
+			}
 		}
 	}
 
 	// Then execute the determined action for all cells
-	for _, cell := range w.cells {
-		if cell.next_state == 1 {
-			cell.alive = true
-		} else if cell.next_state == 0 {
-			cell.alive = false
+	for y := 0; y <= w.height; y++ {
+		for x := 0; x <= w.width; x++ {
+			cell = w.cells[x][y]
+			if cell.next_state == 1 {
+				cell.alive = true
+			} else if cell.next_state == 0 {
+				cell.alive = false
+			}
 		}
-
 	}
 	w.tick++
 }
@@ -86,11 +91,11 @@ func (w *World) render() string {
 	//	rendering += "\n"
 	// }
 	// return rendering
-
+	var cell *Cell
 	var rendering = strings.Builder{}
 	for y := 0; y <= w.height; y++ {
 		for x := 0; x <= w.width; x++ {
-			cell, _ := w.cell_at(x, y)
+			cell, _ = w.cell_at(x, y)
 			rendering.WriteRune(cell.to_char())
 		}
 		rendering.WriteRune('\n')
@@ -110,36 +115,40 @@ func (w *World) populate_cells() {
 }
 
 func (w *World) prepopulate_neighbours() {
-	for _, cell := range w.cells {
-		w.neighbours_around(cell)
+	var cell *Cell
+	for y := 0; y <= w.height; y++ {
+		for x := 0; x <= w.width; x++ {
+			cell = w.cells[x][y]
+			w.neighbours_around(cell)
+		}
 	}
 }
 
 func (w *World) add_cell(x, y int, alive bool) *Cell {
-	if _, ok := w.cell_at(x, y); ok {
+	if _, empty := w.cell_at(x, y); empty {
 		panic(LocationOccupied)
 	}
 
-	key := strconv.Itoa(x) + "-" + strconv.Itoa(y)
 	c := &Cell{x: x, y: y, alive: alive}
 
-	w.cells[key] = c
+	w.cells[x][y] = c
 	return c
 }
 
 func (w *World) cell_at(x, y int) (*Cell, bool) {
-	key := strconv.Itoa(x) + "-" + strconv.Itoa(y)
-	cell, ok := w.cells[key]
+	if x >= 0 && y >= 0 && x <= w.width && y <= w.height {
+		return w.cells[x][y], false
+	}
 
-	return cell, ok
+	return nil, true
 }
 
 func (w *World) neighbours_around(cell *Cell) []*Cell {
 	if cell.neighbours == nil {
 		for _, set := range cachedDirections {
-			neighbour, ok := w.cell_at(cell.x+set[0], cell.y+set[1])
+			neighbour, empty := w.cell_at(cell.x+set[0], cell.y+set[1])
 
-			if ok {
+			if !empty {
 				cell.neighbours = append(cell.neighbours, neighbour)
 			}
 		}
